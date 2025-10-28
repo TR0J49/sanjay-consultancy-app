@@ -11,6 +11,11 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    navigate('/admin/login');
+  };
+
   const handleSearch = async (e) => {
     e.preventDefault();
     setError('');
@@ -38,26 +43,46 @@ const AdminDashboard = () => {
   };
 
   const handleSelectUser = async (userId) => {
+    setError('');
+    setLoading(true);
     try {
       const response = await getUserDetails(userId);
       setSelectedUser(response.data);
     } catch (err) {
-      setError('Failed to load user details');
+      setError(err.response?.data?.error || 'Failed to load user details');
+      console.error('Error loading user details:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDownloadCV = async (userId) => {
+    setError('');
     try {
       const response = await downloadCV(userId);
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `${selectedUser.name}-CV.pdf`);
+      
+      // Get file extension from response headers or default to .pdf
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = `${selectedUser.name}-CV.pdf`;
+      
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+      
+      link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (err) {
-      setError('Failed to download CV');
+      setError(err.response?.data?.error || 'Failed to download CV');
+      console.error('Error downloading CV:', err);
     }
   };
 
